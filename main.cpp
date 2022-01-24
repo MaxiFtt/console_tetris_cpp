@@ -12,17 +12,24 @@ unsigned char gameField[216];
 unsigned char bufGameField[216];
 int rotateIndex(int px, int py, int r){
 	int pi;
-	switch (r){
+	switch (r % 4){
 		case 0: pi =  py * 4 + px;// 0
 				break;
-		case 90: pi = 12 + py - (px * 4); //90
+		case 1: pi = 12 + py - (px * 4); //90
 				break;
-		case 180: pi = 15 - (py * 4) - px; //180
+		case 2: pi = 15 - (py * 4) - px; //180
 				  break;
-		case 270: pi = 3 - py + (px * 4); //270
+		case 3: pi = 3 - py + (px * 4); //270
 				  break;
 	}
 	return pi;
+}
+void rotatePiece(std::wstring &currentPiece,int tIndex, int r){
+	for(int y = 0; y < 4; y++){
+		for(int x = 0; x < 4; x++){
+			currentPiece[4*y+x] = (char)tetromino[tIndex][rotateIndex(x,y,r)];
+		}
+	}
 }
 void build_scenario(){	
 	for(int y = 0; y < fieldHeight; y++){//game borders
@@ -44,39 +51,44 @@ void gameFieldToBuf(){
 	}
 }
 void showBufGameField(){
-	for(int y = 0; y < fieldHeight; y++){//game borders
+	for(int y = 0; y < fieldHeight; y++){
 		for(int x = 0; x < fieldWidth; x++){
 			std::cout << bufGameField[fieldWidth*y+x];
 		}
 		std::cout << "\n";
 	}
 }
-bool doesItfit(int tIndex, int posX, int posY, int evalX,int evalY){
+bool doesItfit(std::wstring currentPiece, int posX, 
+		int posY, int evalX,int evalY, 
+		bool testRotation = false,int tIndex = 0, int r = 0){
 	for(int y = 0; y < 4; y++){
 		for(int x = 0; x < 4; x++){
-			if(gameField[fieldWidth*(y+posY+evalY)+x+posX+evalX] != ' ' && tetromino[tIndex][4*y+x] > 46){
+			if(testRotation == true){
+				rotatePiece(currentPiece, tIndex, r+1);
+			}
+			if(gameField[fieldWidth*(y+posY+evalY)+x+posX+evalX] != ' ' && currentPiece[4*y+x] > 46){
 				return false;
 			}
 		}
 	}
 	return true;
 }
-void showTetromino( int tIndex, int posX, int posY)
+void showTetromino( std::wstring currentPiece, int posX, int posY)
 {
 	for(int y = 0; y < 4; y++){
 		for(int x = 0; x < 4; x++){
-			if(tetromino[tIndex][4*y+x] != '.'){
-				bufGameField[fieldWidth*(y+posY)+x+posX] = (char)tetromino[tIndex][4*y +x];		
+			if(currentPiece[4*y+x] != '.'){
+				bufGameField[fieldWidth*(y+posY)+x+posX] = (char)currentPiece[4*y +x];		
 			}
 		}
 	}
 }
-void lockTetromino( int tIndex, int posX, int posY)
+void lockTetromino( std::wstring currentPiece, int posX, int posY)
 {
 	for(int y = 0; y < 4; y++){
 		for(int x = 0; x < 4; x++){
-			if(tetromino[tIndex][4*y+x] != '.'){
-				gameField[fieldWidth*(y+posY)+x+posX] = (char)tetromino[tIndex][4*y +x];		
+			if(currentPiece[4*y+x] != '.'){
+				gameField[fieldWidth*(y+posY)+x+posX] = (char)currentPiece[4*y +x];		
 			}
 		}
 	}
@@ -118,40 +130,45 @@ int main(){
     tetromino[6].append(L"....");
 	
 	//game variables
+	srand(time(NULL));
 	bool gameOver = false;
+	int tIndex = rand() % 7;
+	std::wstring currentPiece = tetromino[tIndex];
 	int posX = 4;
 	int posY = 0;
-	srand(time(NULL));
-	int tIndex = rand() % 7;
-	char *input;
+	int rotation = 0;
+	std::string input;
 	//---
 	build_scenario();
 	do{
 		gameFieldToBuf();
-		showTetromino(tIndex,posX,posY);
+		showTetromino(currentPiece,posX,posY);
 		showBufGameField();
 		std::cin >> input;
 		//controls
-		if(doesItfit(tIndex,posX,posY,-1,0)){
+		if(doesItfit(currentPiece,posX,posY,-1,0)){
 			posX += input[0] == 'a' ? -1: 0; //left
 		}
-		if(doesItfit(tIndex,posX,posY,1,0)){
+		if(doesItfit(currentPiece,posX,posY,1,0)){
 			posX += input[0]== 'd' ? 1 : 0; //right
 		}
-		if(doesItfit(tIndex,posX,posY,0,1)){
+		if(doesItfit(currentPiece,posX,posY,0,1)){
 			posY += input[0]== 's' ? 1: 0; //down
 		}
-		if(doesItfit(tIndex,posX,posY,0,1)){
-			posY += input[0]== 'w' ? 1: 0; //rotate
+		if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
+			rotation += input[0]== 'w' ? 1:0;		
+			rotatePiece(currentPiece,tIndex,rotation);//rotate
 		}
 		//---
 		std::this_thread::sleep_for(25ms);
-		if(doesItfit(tIndex,posX,posY,0,1)){
+		if(doesItfit(currentPiece,posX,posY,0,1)){
 			posY++;
 		}else{ //no space? lock piece in place
-			lockTetromino(tIndex,posX,posY);
+			lockTetromino(currentPiece,posX,posY);
 			gameOver = posY == 0 ? true : false;
 			tIndex = rand() % 7;
+			currentPiece = tetromino[tIndex];
+			rotation = 0;
 			posX=4;
 			posY=0;
 
