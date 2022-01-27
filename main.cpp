@@ -93,6 +93,26 @@ void lockTetromino( std::wstring currentPiece, int posX, int posY)
 		}
 	}
 }
+void moveLines(int Yindex){
+	for(int y = Yindex; y > 0; y--){
+		for(int x = 0; x < fieldWidth -2; x++){ //field without borders
+			gameField[fieldWidth*y+x+1] = gameField[fieldWidth*(y-1)+x+1]; 
+			gameField[fieldWidth*(y-1)+x+1] = ' '; 
+		}
+	}
+}
+void deleteLines(){
+	int countInLine;
+	for(int y = 0; y < fieldHeight -1; y++){
+		countInLine = 0;
+		for(int x = 0; x < fieldWidth -2; x++){ //field without borders
+			countInLine += gameField[fieldWidth*y+x+1] != ' ' ? 1 : 0;
+			if(countInLine == 10){
+				moveLines(y);
+			}
+		}		
+	}
+}
 int main(){
     tetromino[0].append(L"..I.");//pieces
     tetromino[0].append(L"..I.");
@@ -163,8 +183,9 @@ int main(){
 		std::this_thread::sleep_for(25ms);
 		if(doesItfit(currentPiece,posX,posY,0,1)){
 			posY++;
-		}else{ //no space? lock piece in place
+		}else{ //in ground? lock piece in place
 			lockTetromino(currentPiece,posX,posY);
+			deleteLines();
 			gameOver = posY == 0 ? true : false;
 			tIndex = rand() % 7;
 			currentPiece = tetromino[tIndex];
