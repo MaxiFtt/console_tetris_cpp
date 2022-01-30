@@ -3,6 +3,8 @@
 #include <thread>
 #include <cstdlib>
 #include <ctime>
+#include <termios.h>
+#include <unistd.h>
 using namespace std::literals::chrono_literals;
 
 std::wstring tetromino[7];
@@ -10,6 +12,38 @@ int fieldWidth = 12;
 int fieldHeight = 18;
 unsigned char gameField[216];
 unsigned char bufGameField[216];
+//CONSOLE SETTINGS
+class BufferToggle
+{
+    private:
+        struct termios t;
+
+    public:
+
+        /*
+         * Disables buffered input
+         */
+
+        void off(void)
+        {
+            tcgetattr(STDIN_FILENO, &t); //get the current terminal I/O structure
+            t.c_lflag &= ~ICANON; //Manipulate the flag bits to do what you want it to do
+            tcsetattr(STDIN_FILENO, TCSANOW, &t); //Apply the new settings
+        }
+
+
+        /*
+         * Enables buffered input
+         */
+
+        void on(void)
+        {
+            tcgetattr(STDIN_FILENO, &t); //get the current terminal I/O structure
+            t.c_lflag |= ICANON; //Manipulate the flag bits to do what you want it to do
+            tcsetattr(STDIN_FILENO, TCSANOW, &t); //Apply the new settings
+        }
+};
+//---
 int rotateIndex(int px, int py, int r){
 	int pi;
 	switch (r % 4){
@@ -101,7 +135,7 @@ void moveLines(int Yindex){
 		}
 	}
 }
-void deleteLines(){
+void fullLines(int &points){
 	int countInLine;
 	for(int y = 0; y < fieldHeight -1; y++){
 		countInLine = 0;
@@ -109,6 +143,7 @@ void deleteLines(){
 			countInLine += gameField[fieldWidth*y+x+1] != ' ' ? 1 : 0;
 			if(countInLine == 10){
 				moveLines(y);
+				points++;
 			}
 		}		
 	}
@@ -154,48 +189,67 @@ int main(){
 	bool gameOver = false;
 	int tIndex = rand() % 7;
 	std::wstring currentPiece = tetromino[tIndex];
+	int points = 0;
 	int posX = 4;
 	int posY = 0;
 	int rotation = 0;
-	std::string input;
+    int cyclesCount = 0;
+	char input;
+    bool anyInput = false;
 	//---
+	BufferToggle bt;
+	bt.off();
+	std::thread keys([gameOver, &input, &anyInput]{
+		while(gameOver == false){
+            if(std::cin.get(input)){
+                anyInput = true;
+            }
+            std::this_thread::sleep_for(25ms);
+            anyInput = false;
+		}
+	});
 	build_scenario();
 	do{
 		gameFieldToBuf();
 		showTetromino(currentPiece,posX,posY);
 		showBufGameField();
-		std::cin >> input;
 		//controls
-		if(doesItfit(currentPiece,posX,posY,-1,0)){
-			posX += input[0] == 'a' ? -1: 0; //left
-		}
-		if(doesItfit(currentPiece,posX,posY,1,0)){
-			posX += input[0]== 'd' ? 1 : 0; //right
-		}
-		if(doesItfit(currentPiece,posX,posY,0,1)){
-			posY += input[0]== 's' ? 1: 0; //down
-		}
-		if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
-			rotation += input[0]== 'w' ? 1:0;		
-			rotatePiece(currentPiece,tIndex,rotation);//rotate
-		}
+		if(anyInput == true){
+            if(doesItfit(currentPiece,posX,posY,-1,0)){
+                posX += input == 'a' ? -1: 0; //left
+            }
+            if(doesItfit(currentPiece,posX,posY,1,0)){
+                posX += input == 'd' ? 1 : 0; //right
+            }
+            if(doesItfit(currentPiece,posX,posY,0,1)){
+                posY += input == 's' ? 1: 0; //down
+            }
+            if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
+                rotation += input == 'w' ? 1:0;
+                rotatePiece(currentPiece,tIndex,rotation);//rotate
+            }
+        }
 		//---
 		std::this_thread::sleep_for(25ms);
+        cyclesCount++;
 		if(doesItfit(currentPiece,posX,posY,0,1)){
-			posY++;
+            if(cyclesCount % 16 == 0){
+                posY++;
+            }
 		}else{ //in ground? lock piece in place
 			lockTetromino(currentPiece,posX,posY);
-			deleteLines();
+			fullLines(points);
 			gameOver = posY == 0 ? true : false;
 			tIndex = rand() % 7;
 			currentPiece = tetromino[tIndex];
 			rotation = 0;
 			posX=4;
 			posY=0;
-
 		}
 		system("clear");
 	}while(gameOver == false);
-
+	keys.join();
+	std::cout << "Game Over!" << '\n';
+	std::cout << "Your points: " << points;
     return 0;
 }
