@@ -199,12 +199,12 @@ int main(){
 	//---
 	BufferToggle bt;
 	bt.off();
-	std::thread keys([gameOver, &input, &anyInput]{
+	std::thread keys([&gameOver, &input, &anyInput]{
 		while(gameOver == false){
             if(std::cin.get(input)){
                 anyInput = true;
             }
-            std::this_thread::sleep_for(25ms);
+            std::this_thread::sleep_for(5ms);
             anyInput = false;
 		}
 	});
@@ -230,10 +230,10 @@ int main(){
             }
         }
 		//---
-		std::this_thread::sleep_for(25ms);
+		std::this_thread::sleep_for(5ms);
         cyclesCount++;
 		if(doesItfit(currentPiece,posX,posY,0,1)){
-            if(cyclesCount % 16 == 0){
+            if(cyclesCount % 200 == 0){
                 posY++;
             }
 		}else{ //in ground? lock piece in place
