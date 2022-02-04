@@ -249,6 +249,7 @@ int main(){
 		system("clear");
 	}while(gameOver == false);
 	keys.join();
+	system("clear");
 	std::cout << "Game Over!" << '\n';
 	std::cout << "Your points: " << points;
     return 0;
