@@ -11,7 +11,9 @@ std::wstring tetromino[7];
 int fieldWidth = 12;
 int fieldHeight = 18;
 unsigned char gameField[216];
-unsigned char bufGameField[216];
+unsigned char* bufGameField = new unsigned char[216];
+unsigned char* secBufGameField = new unsigned char[216];
+unsigned char* bufferContainer[2] = {bufGameField,secBufGameField};
 //CONSOLE SETTINGS
 class BufferToggle
 {
@@ -71,23 +73,25 @@ void build_scenario(){
 			if( x == 0 || x == fieldWidth - 1 || y == fieldHeight -1)
 			{
 				gameField[fieldWidth*y + x]= '#';
-				bufGameField[fieldWidth*y + x]= '#';
+				bufferContainer[0][fieldWidth*y + x]= '#';
+				bufferContainer[1][fieldWidth*y + x]= '#';
 			}else{
 				gameField[fieldWidth*y + x]= ' ';
-				bufGameField[fieldWidth*y +x] = ' ';
+				bufferContainer[0][fieldWidth*y +x] = ' ';
+				bufferContainer[1][fieldWidth*y +x] = ' ';
 			}
 		}
 	}
 }
-void gameFieldToBuf(){
+void gameFieldToBuf(unsigned char* buffer){
 	for(int i =0; i < 216;i++){
-		bufGameField[i] = gameField[i];
+		buffer[i] = gameField[i];
 	}
 }
-void showBufGameField(){
+void showBufGameField(unsigned char* buffer){
 	for(int y = 0; y < fieldHeight; y++){
 		for(int x = 0; x < fieldWidth; x++){
-			std::cout << bufGameField[fieldWidth*y+x];
+			std::cout << buffer[fieldWidth*y+x];
 		}
 		std::cout << "\n";
 	}
@@ -107,12 +111,12 @@ bool doesItfit(std::wstring currentPiece, int posX,
 	}
 	return true;
 }
-void showTetromino( std::wstring currentPiece, int posX, int posY)
+void showTetromino(unsigned char* buffer, std::wstring currentPiece, int posX, int posY)
 {
 	for(int y = 0; y < 4; y++){
 		for(int x = 0; x < 4; x++){
 			if(currentPiece[4*y+x] != '.'){
-				bufGameField[fieldWidth*(y+posY)+x+posX] = (char)currentPiece[4*y +x];		
+				buffer[fieldWidth*(y+posY)+x+posX] = (char)currentPiece[4*y +x];
 			}
 		}
 	}
@@ -210,9 +214,9 @@ int main(){
 	});
 	build_scenario();
 	do{
-		gameFieldToBuf();
-		showTetromino(currentPiece,posX,posY);
-		showBufGameField();
+        showTetromino(bufferContainer[(cyclesCount + 1) % 2],currentPiece,posX,posY);
+        showBufGameField(bufferContainer[(cyclesCount + 1) % 2]);
+        gameFieldToBuf(bufferContainer[cyclesCount % 2]);
 		//controls
 		if(anyInput == true){
             if(doesItfit(currentPiece,posX,posY,-1,0)){
@@ -249,6 +253,8 @@ int main(){
 		system("clear");
 	}while(gameOver == false);
 	keys.join();
+    delete[] bufGameField;
+    delete[] secBufGameField;
 	system("clear");
 	std::cout << "Game Over!" << '\n';
 	std::cout << "Your points: " << points;
