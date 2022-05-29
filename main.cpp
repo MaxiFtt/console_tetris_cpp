@@ -153,7 +153,7 @@ void fullLines(int &points){
 	}
 }
 int main(){
-    tetromino[0].append(L"..I.");//pieces
+    tetromino[0].append(L"..I.");
     tetromino[0].append(L"..I.");
     tetromino[0].append(L"..I.");
     tetromino[0].append(L"..I.");
@@ -188,7 +188,6 @@ int main(){
     tetromino[6].append(L".JJ.");
     tetromino[6].append(L"....");
 	
-	//game variables
 	srand(time(NULL));
 	bool gameOver = false;
 	int tIndex = rand() % 7;
@@ -200,7 +199,7 @@ int main(){
     int cyclesCount = 0;
 	char input;
     bool anyInput = false;
-	//---
+
 	BufferToggle bt;
 	bt.off();
 	std::thread keys([&gameOver, &input, &anyInput]{
@@ -216,21 +215,23 @@ int main(){
 	do{
         showTetromino(bufferContainer[(cyclesCount + 1) % 2],currentPiece,posX,posY);
         showBufGameField(bufferContainer[(cyclesCount + 1) % 2]);
-        gameFieldToBuf(bufferContainer[cyclesCount % 2]);
+		std::thread loadFrame([bufferContainer, &cyclesCount]{
+			gameFieldToBuf(bufferContainer[cyclesCount % 2]);
+		});
 		//controls
 		if(anyInput == true){
             if(doesItfit(currentPiece,posX,posY,-1,0)){
-                posX += input == 'a' ? -1: 0; //left
+                posX += input == 'a' ? -1: 0;
             }
             if(doesItfit(currentPiece,posX,posY,1,0)){
-                posX += input == 'd' ? 1 : 0; //right
+                posX += input == 'd' ? 1 : 0;
             }
             if(doesItfit(currentPiece,posX,posY,0,1)){
-                posY += input == 's' ? 1: 0; //down
+                posY += input == 's' ? 1: 0;
             }
             if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
                 rotation += input == 'w' ? 1:0;
-                rotatePiece(currentPiece,tIndex,rotation);//rotate
+                rotatePiece(currentPiece,tIndex,rotation);
             }
         }
 		//---
@@ -240,7 +241,7 @@ int main(){
             if(cyclesCount % 200 == 0){
                 posY++;
             }
-		}else{ //in ground? lock piece in place
+		}else{
 			lockTetromino(currentPiece,posX,posY);
 			fullLines(points);
 			gameOver = posY == 0 ? true : false;
@@ -250,6 +251,7 @@ int main(){
 			posX=4;
 			posY=0;
 		}
+		loadFrame.join();
 		system("clear");
 	}while(gameOver == false);
 	keys.join();
