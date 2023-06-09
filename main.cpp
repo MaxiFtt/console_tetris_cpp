@@ -104,7 +104,7 @@ void moveLines(int Yindex){
 		}
 	}
 }
-void fullLines(int &points){
+bool fullLines(){
 	int countInLine;
 	for(int y = 0; y < fieldHeight -1; y++){
 		countInLine = 0;
@@ -112,10 +112,11 @@ void fullLines(int &points){
 			countInLine += gameField[fieldWidth*y+x+1] != ' ' ? 1 : 0;
 			if(countInLine == 10){
 				moveLines(y);
-				points++;
+        return true;
 			}
 		}		
 	}
+  return false;
 }
 int main(){
     tetromino[0].append(L"..I.");//pieces
@@ -162,62 +163,62 @@ int main(){
 	int posY = 0;
 	int rotation = 0;
   int cyclesCount = 0;
+  int cycles = 200;
 	char input;
-  bool anyInput = false;
-	//---
   //ncurses
   initscr();
   noecho();
   raw();
+  nodelay(stdscr, TRUE);
   build_scenario();
+	do{
 		gameFieldToBuf();
 		showTetromino(currentPiece,posX,posY);
 		showBufGameField();
+    input = getch();
+		//controls
+    if(doesItfit(currentPiece,posX,posY,-1,0)){
+      posX += input == 'a' ? -1: 0; //left
+    }
+    if(doesItfit(currentPiece,posX,posY,1,0)){
+      posX += input == 'd' ? 1 : 0; //right
+    }
+    if(doesItfit(currentPiece,posX,posY,0,1)){
+      posY += input == 's' ? 1: 0; //down
+    }
+    if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
+      rotation += input == 'w' ? 1:0;
+      rotatePiece(currentPiece,tIndex,rotation);//rotate
+    }
+		//---
+		std::this_thread::sleep_for(5ms);
+    cyclesCount++;
+		if(doesItfit(currentPiece,posX,posY,0,1)){
+            if(cyclesCount % cycles == 0){
+                posY++;
+            }
+		}else{ //in ground? lock piece in place
+			lockTetromino(currentPiece,posX,posY);
+			if (fullLines() == true){
+        points++;
+        cycles += cycles == 10 ? 0 : -1;
+      }
+			gameOver = posY == 0 ? true : false;
+			tIndex = rand() % 7;
+			currentPiece = tetromino[tIndex];
+			rotation = 0;
+			posX=4;
+			posY=0;
+		}
+    refresh();
+	}while(gameOver == false);
+  nodelay(stdscr, FALSE);
+	printw("\n Game Over!\n");
+	printw("Your points ('q' to quit): %d", points);
   refresh();
-	// do{
-	// 	gameFieldToBuf();
-	// 	showTetromino(currentPiece,posX,posY);
-	// 	showBufGameField();
-  //   input = getch();
-	// 	//controls
-	// 	if(anyInput == true){
-  //           if(doesItfit(currentPiece,posX,posY,-1,0)){
-  //               posX += input == 'a' ? -1: 0; //left
-  //           }
-  //           if(doesItfit(currentPiece,posX,posY,1,0)){
-  //               posX += input == 'd' ? 1 : 0; //right
-  //           }
-  //           if(doesItfit(currentPiece,posX,posY,0,1)){
-  //               posY += input == 's' ? 1: 0; //down
-  //           }
-  //           if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
-  //               rotation += input == 'w' ? 1:0;
-  //               rotatePiece(currentPiece,tIndex,rotation);//rotate
-  //           }
-  //       }
-	// 	//---
-	// 	std::this_thread::sleep_for(5ms);
-  //       cyclesCount++;
-	// 	if(doesItfit(currentPiece,posX,posY,0,1)){
-  //           if(cyclesCount % 200 == 0){
-  //               posY++;
-  //           }
-	// 	}else{ //in ground? lock piece in place
-	// 		lockTetromino(currentPiece,posX,posY);
-	// 		fullLines(points);
-	// 		gameOver = posY == 0 ? true : false;
-	// 		tIndex = rand() % 7;
-	// 		currentPiece = tetromino[tIndex];
-	// 		rotation = 0;
-	// 		posX=4;
-	// 		posY=0;
-	// 	}
-  //   refresh();
-	// 	// system("clear");
-	// }while(gameOver == false);
-	// // system("clear");
-	// refresh();
-	// std::cout << "Game Over!" << '\n';
-	// std::cout << "Your points: " << points;
+  while (input != 'q'){
+    input = getch();
+  }
+  endwin();
     return 0;
 }
