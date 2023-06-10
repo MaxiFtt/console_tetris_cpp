@@ -1,51 +1,16 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <cstdlib>
 #include <ctime>
-#include <termios.h>
-#include <unistd.h>
+#include <ncurses.h>
 using namespace std::literals::chrono_literals;
 
 std::wstring tetromino[7];
 int fieldWidth = 12;
 int fieldHeight = 18;
 unsigned char gameField[216];
-unsigned char* bufGameField = new unsigned char[216];
-unsigned char* secBufGameField = new unsigned char[216];
-unsigned char* bufferContainer[2] = {bufGameField,secBufGameField};
-//CONSOLE SETTINGS
-class BufferToggle
-{
-    private:
-        struct termios t;
+unsigned char bufGameField[216];
 
-    public:
-
-        /*
-         * Disables buffered input
-         */
-
-        void off(void)
-        {
-            tcgetattr(STDIN_FILENO, &t); //get the current terminal I/O structure
-            t.c_lflag &= ~ICANON; //Manipulate the flag bits to do what you want it to do
-            tcsetattr(STDIN_FILENO, TCSANOW, &t); //Apply the new settings
-        }
-
-
-        /*
-         * Enables buffered input
-         */
-
-        void on(void)
-        {
-            tcgetattr(STDIN_FILENO, &t); //get the current terminal I/O structure
-            t.c_lflag |= ICANON; //Manipulate the flag bits to do what you want it to do
-            tcsetattr(STDIN_FILENO, TCSANOW, &t); //Apply the new settings
-        }
-};
-//---
 int rotateIndex(int px, int py, int r){
 	int pi;
 	switch (r % 4){
@@ -67,18 +32,14 @@ void rotatePiece(std::wstring &currentPiece,int tIndex, int r){
 		}
 	}
 }
-void build_scenario(){	
+void build_scenario(){
 	for(int y = 0; y < fieldHeight; y++){//game borders
 		for(int x = 0; x < fieldWidth; x++){
 			if( x == 0 || x == fieldWidth - 1 || y == fieldHeight -1)
 			{
 				gameField[fieldWidth*y + x]= '#';
-				bufferContainer[0][fieldWidth*y + x]= '#';
-				bufferContainer[1][fieldWidth*y + x]= '#';
 			}else{
 				gameField[fieldWidth*y + x]= ' ';
-				bufferContainer[0][fieldWidth*y +x] = ' ';
-				bufferContainer[1][fieldWidth*y +x] = ' ';
 			}
 		}
 	}
@@ -91,9 +52,8 @@ void gameFieldToBuf(unsigned char* buffer){
 void showBufGameField(unsigned char* buffer){
 	for(int y = 0; y < fieldHeight; y++){
 		for(int x = 0; x < fieldWidth; x++){
-			std::cout << buffer[fieldWidth*y+x];
+			mvaddch(y,x,bufGameField[fieldWidth*y+x]);
 		}
-		std::cout << "\n";
 	}
 }
 bool doesItfit(std::wstring currentPiece, int posX, 
@@ -139,7 +99,7 @@ void moveLines(int Yindex){
 		}
 	}
 }
-void fullLines(int &points){
+bool fullLines(){
 	int countInLine;
 	for(int y = 0; y < fieldHeight -1; y++){
 		countInLine = 0;
@@ -147,10 +107,11 @@ void fullLines(int &points){
 			countInLine += gameField[fieldWidth*y+x+1] != ' ' ? 1 : 0;
 			if(countInLine == 10){
 				moveLines(y);
-				points++;
+        return true;
 			}
 		}		
 	}
+  return false;
 }
 int main(){
     tetromino[0].append(L"..I.");
@@ -187,7 +148,7 @@ int main(){
     tetromino[6].append(L"..J.");
     tetromino[6].append(L".JJ.");
     tetromino[6].append(L"....");
-	
+	//game variables
 	srand(time(NULL));
 	bool gameOver = false;
 	int tIndex = rand() % 7;
@@ -196,54 +157,47 @@ int main(){
 	int posX = 4;
 	int posY = 0;
 	int rotation = 0;
-    int cyclesCount = 0;
+  int cyclesCount = 0;
+  int cycles = 200;
 	char input;
-    bool anyInput = false;
-
-	BufferToggle bt;
-	bt.off();
-	std::thread keys([&gameOver, &input, &anyInput]{
-		while(gameOver == false){
-            if(std::cin.get(input)){
-                anyInput = true;
-            }
-            std::this_thread::sleep_for(5ms);
-            anyInput = false;
-		}
-	});
-	build_scenario();
+  //ncurses
+  initscr();
+  noecho();
+  raw();
+  nodelay(stdscr, TRUE);
+  build_scenario();
 	do{
-        showTetromino(bufferContainer[(cyclesCount + 1) % 2],currentPiece,posX,posY);
-        showBufGameField(bufferContainer[(cyclesCount + 1) % 2]);
-		std::thread loadFrame([bufferContainer, &cyclesCount]{
-			gameFieldToBuf(bufferContainer[cyclesCount % 2]);
-		});
+		gameFieldToBuf(bufGameField);
+		showTetromino(bufGameField, currentPiece, posX, posY);
+		showBufGameField(bufGameField);
+    input = getch();
 		//controls
-		if(anyInput == true){
-            if(doesItfit(currentPiece,posX,posY,-1,0)){
-                posX += input == 'a' ? -1: 0;
-            }
-            if(doesItfit(currentPiece,posX,posY,1,0)){
-                posX += input == 'd' ? 1 : 0;
-            }
-            if(doesItfit(currentPiece,posX,posY,0,1)){
-                posY += input == 's' ? 1: 0;
-            }
-            if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
-                rotation += input == 'w' ? 1:0;
-                rotatePiece(currentPiece,tIndex,rotation);
-            }
-        }
+    if(doesItfit(currentPiece,posX,posY,-1,0)){
+      posX += input == 'a' ? -1: 0; //left
+    }
+    if(doesItfit(currentPiece,posX,posY,1,0)){
+      posX += input == 'd' ? 1 : 0; //right
+    }
+    if(doesItfit(currentPiece,posX,posY,0,1)){
+      posY += input == 's' ? 1: 0; //down
+    }
+    if(doesItfit(currentPiece,posX,posY,0,0,true,tIndex,rotation)){
+      rotation += input == 'w' ? 1:0;
+      rotatePiece(currentPiece,tIndex,rotation);//rotate
+    }
 		//---
+    if (fullLines() == true){
+      points++;
+      cycles += cycles == 10 ? 0 : -1;
+    }
 		std::this_thread::sleep_for(5ms);
-        cyclesCount++;
+    cyclesCount++;
 		if(doesItfit(currentPiece,posX,posY,0,1)){
-            if(cyclesCount % 200 == 0){
+            if(cyclesCount % cycles == 0){
                 posY++;
             }
 		}else{
 			lockTetromino(currentPiece,posX,posY);
-			fullLines(points);
 			gameOver = posY == 0 ? true : false;
 			tIndex = rand() % 7;
 			currentPiece = tetromino[tIndex];
@@ -251,14 +205,15 @@ int main(){
 			posX=4;
 			posY=0;
 		}
-		loadFrame.join();
-		system("clear");
+    refresh();
 	}while(gameOver == false);
-	keys.join();
-    delete[] bufGameField;
-    delete[] secBufGameField;
-	system("clear");
-	std::cout << "Game Over!" << '\n';
-	std::cout << "Your points: " << points;
-    return 0;
+  nodelay(stdscr, FALSE);
+	printw("\n Game Over!\n");
+	printw("Your points ('q' to quit): %d", points);
+  refresh();
+  while (input != 'q'){
+    input = getch();
+  }
+  endwin();
+  return 0;
 }
