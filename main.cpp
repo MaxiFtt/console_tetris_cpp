@@ -1,10 +1,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <cstdlib>
 #include <ctime>
-#include <termios.h>
-#include <unistd.h>
 #include <ncurses.h>
 using namespace std::literals::chrono_literals;
 
