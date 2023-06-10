@@ -1,6 +1,6 @@
 # Console_tetris_cpp
 
-A little program that I programmed to learn and practice c++. The program doesn't use the Windows.h because I use linux and I didn't find enaugh information about console screen buffers for my OS. 
+A little program that I programmed to learn and practice c++. The program doesn't use the Windows.h, but ncurses.h. 
 
 ## Run it
 
